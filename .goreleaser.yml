@@ -1,0 +1,69 @@
+# GoReleaser configuration for the Fast Markdown Preview server.
+# Builds a static binary for linux/darwin/windows x amd64/arm64, packages
+# each as a tar.gz (or zip on Windows), and publishes a GitHub Release with
+# checksums. The Sublime plugin downloads the matching asset at runtime.
+
+version: 2
+
+project_name: fast-md-preview
+
+builds:
+  - id: server
+    main: .
+    binary: fast-md-preview
+    dir: server
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.buildTime={{.Date}}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: default
+    # Name matches what the plugin's _archive_name() expects:
+    #   fast-md-preview_<version>_<os>_<arch>.{tar.gz|zip}
+    name_template: >-
+      fast-md-preview_{{.Version}}_
+      {{- if eq .Os "darwin"}}darwin{{- else}}{{.Os}}{{end}}_
+      {{- .Arch}}
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      # Only ship the binary; README/LICENSE live in the ST package repo.
+      - none*
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+      - "Merge pull request"
+      - "Merge branch"
+
+release:
+  draft: false
+  prerelease: auto
+  name_template: "v{{.Version}}"

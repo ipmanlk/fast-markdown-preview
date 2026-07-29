@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markdown Preview</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  /* Status indicator: tiny floating dot, bottom-right. Shows connection
+     state via color; hover for the text label. */
+  #status {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    z-index: 9999;
+    transition: background .3s, box-shadow .3s;
+    background: #d0d7de;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+    user-select: none;
+  }
+  #status.connecting { background: #d0d7de; }
+  #status.connected  { background: #2ea043; box-shadow: 0 0 4px rgba(46,160,67,0.5); }
+  #status.reconnecting { background: #d29922; animation: pulse 1.5s ease-in-out infinite; }
+  #status.disconnected { background: #cf222e; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Placeholder shown before the first update arrives. */
+  #placeholder {
+    color: #888;
+    text-align: center;
+    padding: 2em;
+  }
+</style>
+</head>
+<body>
+  <div id="status" class="connecting"></div>
+  <script>
+    // morphdom v2.7.4 (MIT). Inlined to avoid an external HTTP request.
+    // Source: https://github.com/patrick-steele-idem/morphdom
+    {{ .Morphdom }}
+  </script>
+  <script>
+    (function () {
+      "use strict";
+
+      var statusEl = document.getElementById("status");
+      var eventSrc = null;
+      var reconnectAttempt = 0;
+      var MAX_RECONNECT_DELAY = 30000; // cap backoff at 30s
+      var lastHtml = "";                // dedupe identical payloads
+      var pendingHtml = null;           // coalesce updates within a frame
+      var rafId = null;
+
+      /*
+       * Status display
+       */
+      function setStatus(state, text) {
+        statusEl.className = state;
+        statusEl.title = text;
+      }
+
+      /*
+       * Theme
+       */
+      function setTheme(theme) {
+        var html = document.documentElement;
+        if (theme === "auto" || !theme) {
+          var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          html.dataset.theme = prefersDark ? "dark" : "light";
+        } else {
+          html.dataset.theme = theme;
+        }
+      }
+
+      (function initTheme() {
+        var params = new URLSearchParams(window.location.search);
+        setTheme(params.get("theme") || "auto");
+      })();
+
+      // Re-evaluate auto theme when the OS preference changes.
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
+        var params = new URLSearchParams(window.location.search);
+        if (!params.get("theme") || params.get("theme") === "auto") {
+          setTheme("auto");
+        }
+      });
+
+      /*
+       * Scroll preservation. morphdom mutates the DOM, which can change page
+       * height and reset scroll. We capture scroll before morphing and
+       * restore it after, on the next animation frame so layout has settled.
+       */
+      function getScrollRatio() {
+        var max = document.documentElement.scrollHeight - window.innerHeight;
+        if (max <= 0) return 0;
+        return window.scrollY / max;
+      }
+
+      function restoreScrollRatio(ratio) {
+        requestAnimationFrame(function () {
+          var max = document.documentElement.scrollHeight - window.innerHeight;
+          window.scrollTo(0, ratio * max);
+        });
+      }
+
+      /*
+       * Apply an incoming HTML document.
+       */
+      function applyHtml(fullDocHtml) {
+        if (fullDocHtml === lastHtml) return; // no change, skip the diff
+        lastHtml = fullDocHtml;
+
+        // Parse the server's full document and pull out #preview.
+        var parser = new DOMParser();
+        var doc = parser.parseFromString(fullDocHtml, "text/html");
+        var newPreview = doc.getElementById("preview");
+        if (!newPreview) return;
+
+        var livePreview = document.getElementById("preview");
+        if (!livePreview) {
+          // First load: create the container.
+          livePreview = document.createElement("main");
+          livePreview.id = "preview";
+          livePreview.className = "markdown-body";
+          document.body.appendChild(livePreview);
+        }
+
+        var ratio = getScrollRatio();
+        morphdom(livePreview, newPreview, {
+          childrenOnly: false,
+          onBeforeElUpdated: function (fromEl, toEl) {
+            // Never touch focused inputs to avoid cursor loss.
+            if (fromEl === document.activeElement &&
+                fromEl.matches("input, textarea, [contenteditable]")) {
+              return false;
+            }
+            return true;
+          }
+        });
+        restoreScrollRatio(ratio);
+      }
+
+      // Coalesce multiple updates within a single frame into one morphdom
+      // call. The server may broadcast faster than the browser paints.
+      function queueApply(html) {
+        pendingHtml = html;
+        if (rafId !== null) return;
+        rafId = requestAnimationFrame(function () {
+          rafId = null;
+          if (pendingHtml !== null) {
+            applyHtml(pendingHtml);
+            pendingHtml = null;
+          }
+        });
+      }
+
+      /*
+       * SSE connection.
+       */
+      function connect() {
+        if (eventSrc) eventSrc.close();
+        setStatus("connecting", "connecting");
+
+        eventSrc = new EventSource("/stream");
+
+        eventSrc.addEventListener("connected", function () {
+          setStatus("connected", "connected");
+          reconnectAttempt = 0;
+        });
+
+        eventSrc.addEventListener("update", function (e) {
+          queueApply(e.data);
+          setStatus("connected", "connected");
+        });
+
+        eventSrc.addEventListener("theme", function (e) {
+          try {
+            var data = JSON.parse(e.data);
+            if (data.theme) setTheme(data.theme);
+          } catch (err) { /* ignore malformed */ }
+        });
+
+        eventSrc.addEventListener("error", function (e) {
+          // Named "error" events carry a server-reported message.
+          try {
+            var data = JSON.parse(e.data);
+            setStatus("disconnected", "error: " + (data.message || "server error"));
+          } catch (err) {
+            setStatus("disconnected", "server error");
+          }
+        });
+
+        // Native connection-loss handler. EventSource auto-reconnects, but we
+        // take over to apply exponential backoff and show a clear status.
+        eventSrc.onerror = function () {
+          eventSrc.close();
+          reconnectAttempt++;
+          var delay = Math.min(1000 * Math.pow(2, reconnectAttempt), MAX_RECONNECT_DELAY);
+          setStatus("reconnecting", "reconnecting in " + Math.round(delay / 1000) + "s");
+          setTimeout(connect, delay);
+        };
+      }
+
+      connect();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+    "schema_version": "1.0",
+    "name": "FastMarkdownPreview",
+    "description": "Fast live Markdown preview for Sublime Text 4. Renders in your browser as you type.",
+    "author": "ipmanlk",
+    "labels": ["markdown", "preview", "live preview", "browser"],
+    "releases": [
+        {
+            "sublime_text": ">=4107",
+            "tags": true
+        }
+    ]
+}

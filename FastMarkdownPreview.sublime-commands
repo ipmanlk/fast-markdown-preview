@@ -1,0 +1,5 @@
+[
+    { "caption": "FMP: Toggle Preview", "command": "fmp_toggle" },
+    { "caption": "FMP: Reopen Preview", "command": "fmp_reopen" },
+    { "caption": "FMP: Settings", "command": "edit_settings", "args": { "base_file": "Packages/FastMarkdownPreview/FastMarkdownPreview.sublime-settings" } }
+]

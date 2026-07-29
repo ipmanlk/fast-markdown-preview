@@ -1,0 +1,5 @@
+# This file tells Package Control to leave this package as an unpacked
+# directory on disk instead of zipping it into a .sublime-package archive.
+# The plugin writes runtime state (the port file, download locks) and caches
+# the downloaded Go server binary in sublime.cache_path(), both of which
+# require write access that a read-only zip archive cannot provide.

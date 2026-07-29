@@ -1,0 +1,102 @@
+name: build
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  go:
+    name: Go build & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      - name: Download deps
+        run: go mod download
+        working-directory: server
+
+      - name: Build
+        run: go build ./...
+        working-directory: server
+
+      - name: Vet
+        run: go vet ./...
+        working-directory: server
+
+      - name: Test
+        run: go test -race -timeout 120s ./...
+        working-directory: server
+
+  python:
+    name: Python lint & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Compile plugin
+        run: python3 -m py_compile fast_markdown_preview.py
+
+      - name: Validate JSON resources
+        run: |
+          python3 - <<'PY'
+          import json, re
+          # Sublime settings use JSONC (// line comments). Strip them before
+          # validating so json.load does not reject valid Sublime config.
+          strip = lambda s: re.sub(r'^\s*//.*$', '', s, flags=re.MULTILINE)
+          files = [
+              'FastMarkdownPreview.sublime-settings',
+              'FastMarkdownPreview.sublime-commands',
+              'package.json',
+              'dependencies.json',
+              'Main.sublime-menu',
+              'Default (Linux).sublime-keymap',
+              'Default (Windows).sublime-keymap',
+              'Default (OSX).sublime-keymap',
+          ]
+          for f in files:
+              with open(f) as fh:
+                  json.loads(strip(fh.read()))
+              print('  ok:', f)
+          PY
+
+      - name: Unit tests
+        run: python3 -m pytest tests/test_plugin.py -v
+
+  integration:
+    name: Integration (Go server + Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Build server
+        run: go build -o tests/fmp-server-test .
+        working-directory: server
+
+      - name: Run integration tests
+        run: python3 -m pytest tests/test_integration.py -v

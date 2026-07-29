@@ -1,0 +1,29 @@
+{
+    // Port for the preview server. 0 = auto-select a free port (recommended).
+    "server_port": 0,
+
+    // Milliseconds to wait after the last keystroke before sending markdown
+    // to the server. Lower = more responsive, higher = less CPU.
+    "debounce_ms": 50,
+
+    // Automatically open the browser when the preview is toggled on.
+    "auto_open_browser": true,
+
+    // Override path to a custom server binary. If empty, the plugin
+    // auto-downloads the correct binary from GitHub Releases.
+    "server_binary_path": "",
+
+    // Preview theme: "auto" (follow OS), "light", or "dark".
+    "theme": "auto",
+
+    // Idle timeout in minutes. The server auto-shuts down after this long
+    // with no SSE clients and no markdown updates. 0 = never (not recommended).
+    "idle_timeout_minutes": 5,
+
+    // When true, the preview follows the active markdown view: switching tabs
+    // or opening another .md file updates the preview automatically.
+    "follow_active_view": true,
+
+    // GitHub repo for binary downloads (owner/name).
+    "github_repo": "ipmanlk/fast-markdown-preview"
+}

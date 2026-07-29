@@ -1,0 +1,16 @@
+[
+    {
+        "id": "tools",
+        "children": [
+            {
+                "caption": "FMP",
+                "children": [
+                    { "command": "fmp_toggle", "caption": "Toggle Preview" },
+                    { "command": "fmp_reopen", "caption": "Reopen Preview" },
+                    { "caption": "-" },
+                    { "command": "edit_settings", "args": { "base_file": "Packages/FastMarkdownPreview/FastMarkdownPreview.sublime-settings" }, "caption": "Settings" }
+                ]
+            }
+        ]
+    }
+]

@@ -1,0 +1,33 @@
+# Build artifacts
+server/bin/
+server/server
+tests/fmp-server-test
+*.exe
+*.tmp
+
+# Go workspace / test cache
+*.test
+*.out
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+*~
+
+# Downloaded server binary (cached at runtime, never committed)
+server/fast-md-preview
+server/fast-md-preview.exe
+
+# Local tooling state
+.pi-subagents/

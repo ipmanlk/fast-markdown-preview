@@ -1,0 +1,59 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write  # required to create the release and upload assets
+
+jobs:
+  goreleaser:
+    name: Build & publish release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # GoReleaser needs the full history for the changelog
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  verify:
+    name: Verify release assets
+    needs: goreleaser
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check release assets exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          echo "Verifying assets for $TAG"
+          # List the assets and confirm all six platform archives + checksums
+          # are present. This catches a misconfigured build matrix early.
+          assets=$(gh release view "$TAG" --repo "${{ github.repository }}" --json assets -q '.assets[].name')
+          echo "$assets"
+          for expected in \
+            "linux_amd64.tar.gz" \
+            "linux_arm64.tar.gz" \
+            "darwin_amd64.tar.gz" \
+            "darwin_arm64.tar.gz" \
+            "windows_amd64.zip" \
+            "windows_arm64.zip" \
+            "checksums.txt"; do
+            echo "$assets" | grep -q "$expected" || { echo "MISSING: $expected"; exit 1; }
+          done
+          echo "All expected assets present."
