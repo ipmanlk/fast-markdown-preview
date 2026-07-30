@@ -39,7 +39,7 @@ from typing import Optional
 import sublime
 import sublime_plugin
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 # Status bar key. Prefixed with spaces for visual padding.
 _STATUS_KEY = "fast_markdown_preview"

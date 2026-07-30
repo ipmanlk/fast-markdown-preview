@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-07-30
+
 ### Fixed
 - Syntax highlighting, markdown typography, and dark theme styles now render
   correctly in the browser preview. The browser UI page was missing the base,
