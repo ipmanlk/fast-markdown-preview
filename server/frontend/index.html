@@ -43,6 +43,11 @@
     text-align: center;
     padding: 2em;
   }
+
+  /* Injected by the Go server at request time. */
+  {{ .BaseStyles }}
+  {{ .HighlightCSS }}
+  {{ .DarkStyles }}
 </style>
 </head>
 <body>

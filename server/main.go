@@ -65,9 +65,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Assemble the browser UI once: inlining morphdom plus the base, syntax-
+	// highlighting, and dark stylesheets so the page is fully self-contained
+	// and syntax highlighting renders correctly from the first load.
+	indexHTML := renderIndex(baseStyles, renderer.HighlightCSS(), darkStyles)
+
 	h := &Handler{
 		broker:    broker,
 		md:        renderer,
+		indexHTML: indexHTML,
 		version:   version,
 		commit:    commit,
 		buildTime: buildTime,

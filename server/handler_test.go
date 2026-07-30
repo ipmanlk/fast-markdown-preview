@@ -18,7 +18,12 @@ func newTestServer(t *testing.T) (*Handler, *Broker, func()) {
 	if err != nil {
 		t.Fatalf("NewMarkdownRenderer: %v", err)
 	}
-	h := &Handler{broker: broker, md: r, version: "test"}
+	h := &Handler{
+		broker:    broker,
+		md:        r,
+		indexHTML: renderIndex(baseStyles, r.HighlightCSS(), darkStyles),
+		version:   "test",
+	}
 	return h, broker, func() {
 		broker.Shutdown()
 	}
@@ -219,7 +224,12 @@ func TestStreamLiveUpdate(t *testing.T) {
 }
 
 // TestIndexServesUI verifies GET / serves the assembled HTML page with
-// morphdom inlined.
+// morphdom and all stylesheets inlined. The index page must contain the
+// base markdown styles, the chroma syntax-highlighting CSS, and the dark
+// theme overrides, because the frontend only diffs the #preview node from
+// SSE updates and never applies the <style> block of the rendered document.
+// Without these styles here, syntax highlighting and typography would be
+// unstyled in the browser.
 func TestIndexServesUI(t *testing.T) {
 	h, _, cancel := newTestServer(t)
 	defer cancel()
@@ -246,6 +256,30 @@ func TestIndexServesUI(t *testing.T) {
 	}
 	if strings.Contains(body, "{{MORPHDOM}}") {
 		t.Error("morphdom placeholder was not replaced")
+	}
+
+	// The base markdown styles must be present so typography/layout works
+	// from the first load, before any SSE update arrives.
+	if !strings.Contains(body, ".markdown-body") {
+		t.Error("index missing base markdown styles (.markdown-body)")
+	}
+	// The chroma syntax-highlighting classes must be present so code blocks
+	// are colored. WithClasses(true) emits rules like ".chroma .k { ... }".
+	if !strings.Contains(body, ".chroma") {
+		t.Error("index missing chroma syntax-highlighting CSS (.chroma)")
+	}
+	if !strings.Contains(body, ".chroma .k") {
+		t.Error("index missing chroma keyword token rule (.chroma .k)")
+	}
+	// The dark theme overrides must be present so dark mode works.
+	if !strings.Contains(body, `html[data-theme="dark"]`) {
+		t.Error("index missing dark theme overrides")
+	}
+	// No template placeholders should survive execution.
+	for _, ph := range []string{"{{ .BaseStyles }}", "{{ .HighlightCSS }}", "{{ .DarkStyles }}", "{{ .Morphdom }}"} {
+		if strings.Contains(body, ph) {
+			t.Errorf("index still contains placeholder %q", ph)
+		}
 	}
 }
 

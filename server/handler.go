@@ -17,6 +17,7 @@ const maxBodyBytes = 10 << 20 // 10 MiB
 type Handler struct {
 	broker    *Broker
 	md        *MarkdownRenderer
+	indexHTML string // fully-assembled browser UI, inlined once at startup
 	version   string
 	commit    string
 	buildTime string
@@ -174,5 +175,5 @@ func (h *Handler) indexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
-	_, _ = io.WriteString(w, indexHTML)
+	_, _ = io.WriteString(w, h.indexHTML)
 }

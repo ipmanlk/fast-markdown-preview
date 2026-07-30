@@ -103,6 +103,13 @@ func (r *MarkdownRenderer) Render(src []byte) (string, error) {
 	return out.String(), nil
 }
 
+// HighlightCSS returns the cached chroma syntax-highlighting stylesheet
+// generated at startup. This is injected into the browser UI index page so
+// code blocks render with proper colors from the first load.
+func (r *MarkdownRenderer) HighlightCSS() string {
+	return r.highlightCSS
+}
+
 // splitSSELines prepares an HTML payload for an SSE "data:" field. SSE events
 // are terminated by a blank line; a payload containing newlines must be split
 // into multiple "data:" lines so the receiver can rejoin them losslessly.

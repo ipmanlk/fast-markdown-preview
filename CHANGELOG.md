@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Syntax highlighting, markdown typography, and dark theme styles now render
+  correctly in the browser preview. The browser UI page was missing the base,
+  chroma syntax-highlighting, and dark-stylesheet CSS — the frontend only
+  diffs the `#preview` node from SSE updates and never applied the `<style>`
+  block of the rendered document, so code blocks and styling were unstyled.
+  The stylesheets are now inlined into the index page at server startup.
+
 ## [1.0.0] - 2026-07-29
 
 ### Added

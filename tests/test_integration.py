@@ -158,3 +158,27 @@ def test_sse_delivers_rendered_html(running_server):
     assert b"event: update" in buf, "missing update event"
     assert b"<h1" in buf, "missing rendered heading"
     assert b"<strong>bold</strong>" in buf, "missing rendered bold"
+
+
+def test_index_page_contains_stylesheets(running_server):
+    """GET / serves a page with base, syntax-highlight, and dark CSS inlined.
+
+    Regression guard: the browser UI diffs only the #preview node from SSE
+    updates, so the stylesheets must live in the index page itself. Without
+    them, syntax highlighting and typography render unstyled.
+    """
+    import urllib.request
+    port = running_server
+    with urllib.request.urlopen("http://127.0.0.1:{}/".format(port), timeout=2) as r:
+        assert r.status == 200
+        body = r.read().decode("utf-8")
+
+    assert ".markdown-body" in body, "index missing base markdown styles"
+    assert ".chroma" in body, "index missing chroma syntax-highlighting CSS"
+    assert ".chroma .k" in body, "index missing chroma keyword token rule"
+    assert 'html[data-theme="dark"]' in body, "index missing dark theme overrides"
+    # No template placeholders should survive rendering.
+    assert "{{ .BaseStyles }}" not in body
+    assert "{{ .HighlightCSS }}" not in body
+    assert "{{ .DarkStyles }}" not in body
+    assert "{{ .Morphdom }}" not in body
